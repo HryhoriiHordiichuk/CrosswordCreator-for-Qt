@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/ico">
+        <file>crossword.png</file>
+    </qresource>
+    <qresource prefix="/help">
+        <file>crossword11.png</file>
+        <file>crossword12.png</file>
+        <file>crossword13.png</file>
+        <file>slovnuk.png</file>
+        <file>vved.png</file>
+    </qresource>
+</RCC>

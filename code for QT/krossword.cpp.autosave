@@ -1,0 +1,759 @@
+#include "krossword.h"
+#include "dialogvved.h"
+#include "ui_krossword.h"
+#include "dictionary.h"
+#include <QFile>
+#include <QMessageBox>
+#include <QDebug>
+#include <QDesktopWidget>
+#include <QApplication>
+#include <QByteArray>
+#include <cstdlib>
+#include <QTableWidgetItem>
+#include <QString>
+#include <QPrinter>
+#include <QPixmap>
+#include <QPoint>
+#include <QPagedPaintDevice>
+#include <QPainter>
+#include <QTextDocument>
+#include <QTextCodec>
+#include <QTextEdit>
+#include <QTextBrowser>
+#include <QMarginsF>
+#include <QResource>
+#include <QRegion>
+#include <QRect>
+#include <QWebEnginePage>
+#include <QWebEngineView>
+#include <QtGui>
+#include <QItemDelegate>
+#include <ctime>
+
+static int k = 0,m=0,h=2;
+static bool first=true,pokr=false;
+
+Krossword::Krossword(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::Krossword)
+{
+    ui->setupUi(this);
+    connect(ui->tableWidget,SIGNAL(itemClicked(QTableWidgetItem)),this,SLOT(cellDelegat(QTableWidgetItem)));
+}
+
+Krossword::~Krossword()
+{
+    delete ui;
+}
+
+void Krossword::on_pushButton_clicked()
+{
+    DialogVved *sl = new DialogVved(this);
+    sl->show();
+    connect(sl,SIGNAL(Slovo(QString, QString,bool)),this,SLOT(addSlovo(QString, QString,bool)));
+    k=0;
+    m=0;
+    strList.clear();
+    strList2.clear();
+    writeStrText.clear();
+    writeStrText2.clear();
+    questionList.clear();
+    ui->textEdit->clear();
+    ui->textEdit_2->clear();
+    ui->tableWidget->clear();
+    ui->tableWidget->setRowCount(0);
+    ui->tableWidget->setColumnCount(0);
+}
+
+void Krossword::addSlovo(QString str, QString str1, bool checked)
+{
+    writeStrText.append(str1);
+    writeStrText2.append(str1);
+    k++;
+    m++;
+    strList.append(str);
+    strList2.append(str);
+    if(checked){
+        QFile *file = new QFile;
+        file->setFileName(QApplication::applicationDirPath() + "/list.txt");
+        if(!file->open(QIODevice::ReadOnly|QIODevice::Text))
+        {
+            qDebug()<<"111222";
+            qCritical("Error %d: %s",file->error(),qPrintable(file->errorString()));
+        }
+        else{
+            bool okWrite = true;
+            while(!file->atEnd()){
+                QString writedStr;
+                writedStr = file->readLine();
+                writedStr.remove(str.length(),writedStr.length()-str.length());
+                qDebug()<<writedStr;
+                qDebug()<<str;
+                if(str == writedStr.toLower()){
+                    okWrite = false;
+                    qDebug()<<"no";
+                }
+            }
+            file->close();
+            if(!file->open(QIODevice::WriteOnly|QIODevice::Append))
+            {
+                qDebug()<<"1111";
+                qCritical("Error %d: %s",file->error(),qPrintable(file->errorString()));
+            }
+            else{
+                if(okWrite){
+                    QString strWr = str + "-" + str1 + "\n";
+                    QByteArray ArrayResul1251;
+                    ArrayResul1251.insert(0,strWr);
+                    QTextCodec *Codec1251=QTextCodec::codecForName("Windows-1251"); //ob]9vlenie ob]ekta QTextCodec, konvertiruushego from chcp1251 to unicode
+                    QString ResultUnicode=Codec1251->toUnicode(ArrayResul1251); //convert to unicode
+                    QTextCodec *CodecUtf8=QTextCodec::codecForName("UTF-8"); //ob]9vlenie ob]ekta QTextCodec, konvertiruushego from unicode to utf-8
+                    QString ResultUtf=CodecUtf8->fromUnicode(ResultUnicode);
+                    file->write(qPrintable(ResultUtf));
+                    file->close();
+                }
+            }
+
+        }
+    }
+}
+
+void Krossword::on_pushButton_5_clicked()
+{
+    k=0;
+    m=0;
+    strList.clear();
+    strList2.clear();
+    writeStrText.clear();
+    writeStrText2.clear();
+    questionList.clear();
+    ui->textEdit->clear();
+    ui->textEdit_2->clear();
+    ui->tableWidget->clear();
+    ui->tableWidget->setRowCount(0);
+    ui->tableWidget->setColumnCount(0);
+}
+
+void Krossword::on_pushButton_2_clicked()
+{
+    strList = strList2;
+    writeStrText = writeStrText2;
+    questionList.clear();
+    ui->textEdit->clear();
+    ui->textEdit_2->clear();
+    for(int i = 0;i<strList.length();i++){
+        ui->textEdit->append(strList[i] + "\n");
+    }
+    k=m;
+    h=2;
+    first = true;
+    if(ui->radioButton_2->isChecked()){
+        pokr = false;
+    }
+    else if (ui->radioButton->isChecked()) {
+        pokr = true;
+    }
+    writeStr.clear();
+    if(k!=0){
+        int a=0;
+        bool write = false, checkAmount = false;
+        QStringList writeIndex[2];
+        QStringList writePos;
+        QStringList notWrite;
+        QStringList notWriteText;
+        ui->tableWidget->clear();
+        QString startArray[300][300];
+        for (int i = 0;i<300;i++) {
+            for (int j = 0;j<300;j++) {
+                startArray[i][j] = "";
+            }
+        }
+
+        while(k>0){
+                if(first){
+                    qDebug()<<"Persche slovo";
+                    a = rand()%k;
+                    if((strList[a].length()/2)!=150){
+                        qDebug()<<"1Persche";
+                        qDebug()<<strList[a];
+                        for (int i = 0;i<strList[a].length();i++) {
+                            startArray[300/2-1][150-(strList[a].length()/2)+i] = strList[a].at(i);
+                            qDebug()<<startArray[300/2-1][150-(strList[a].length()/2)+i];
+                        }
+                        startArray[300/2-1][149-(strList[a].length()/2)] = "1)";
+                        writeIndex[0].append(QString::number(300/2-1));
+                        writeIndex[1].append( QString::number(150-(strList[a].length()/2)));
+                        writeStr.append(strList[a]);
+                        questionList.append(writeStrText[a]);
+                        writeStrText.removeAt(a);
+                        writePos.append("h");
+                        strList.removeAt(a);
+                        qDebug()<<k;
+                        k--;
+                        qDebug()<<k;
+                        first = false;
+                        a=-1;
+                    }
+                }
+                else {
+                    int l=0,countList = strList.length();
+                    int i = rand()%writeStr.length();
+                    if(i==1 && writeStr.length() == 1){
+                        i=0;
+                    }
+                    if(k>1){
+                        a = rand()%k;
+                    }
+                    else if(k==1){
+                        if(writeStr.length()==0){
+                            k=0;
+                            qDebug()<<"10101010";
+                            break;
+                        }
+                        a = 0;
+                    }
+                    for (;i<writeStr.length();i++) {
+                        qDebug()<<"10";
+                        for (int ia = 0;ia<strList[a].length();ia++) {
+                              qDebug()<<"20";
+                            for (int ja = 0;ja<writeStr[i].length();ja++) {
+                                    qDebug()<<"30";
+                                if(strList[a].at(ia) == writeStr[i].at(ja)){
+                                    qDebug()<<"40";
+                                    int row = 300 - writeIndex[0][i].toInt() - 1;
+                                    int indt = strList[a].length() - ia - 1;
+                                    int rowY = 300 - writeIndex[1][i].toInt() - 1;
+                                    int indtY = strList[a].length() - ia - 1;
+                                        if(writePos[i] == "h" && strList[a].length()<300 && ia<writeIndex[0][i].toInt() && indt<=row ){
+                                        qDebug()<<"50";
+                                        int indexY = writeIndex[1][i].toInt()+ja;
+                                        int indexX = writeIndex[0][i].toInt();
+                                        if(indexX>=ia){
+                                            bool okWrite = true;
+                                            qDebug()<<"60";
+                                            int ba=0;
+                                            for (int ind = indexX - ia;ind<indexX+(strList[a].length()-ia);ind++) {                                 
+                                                qDebug()<<"70";
+                                                if(ind!=indexX){
+                                                    if(ind == indexX - ia){
+                                                        if(!startArray[ind-1][indexY].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                        if(!startArray[ind][indexY-1].isEmpty() || !startArray[ind][indexY+1].isEmpty()){
+                                                            if(startArray[ind][indexY] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                    }
+                                                    else if (ind == indexX+(strList[a].length()-ia)-1) {
+                                                        if(!startArray[ind+1][indexY].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                        if(!startArray[ind][indexY-1].isEmpty() || !startArray[ind][indexY+1].isEmpty()){
+                                                            if(startArray[ind][indexY] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                    }
+                                                    else {
+                                                        if(!startArray[ind][indexY-1].isEmpty() || !startArray[ind][indexY+1].isEmpty()){
+                                                            if(startArray[ind][indexY] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                else{
+                                                    if(ind == indexX - ia && ia==0){
+                                                        if(!startArray[ind-1][indexY].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                    }
+                                                }
+                                                if(ia == 0 && ja == 0){
+                                                    if(!startArray[indexX-1][indexY].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == strList[a].length()-1 && ja == 0){
+                                                    if(!startArray[indexX+1][indexY].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == 0 && ja == writeStr[i].length()-1){
+                                                    if(!startArray[indexX-1][indexY].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == strList[a].length()-1 && ja == writeStr[i].length()-1){
+                                                    if(!startArray[indexX+1][indexY].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                qDebug()<<ind<<indexX<<indexX+(strList[a].length()-ia);
+                                                if(!startArray[ind][indexY].isEmpty()){
+                                                    qDebug()<<ba;
+                                                    qDebug()<<"80";
+                                                    if( startArray[ind][indexY] != strList[a].at(ba)){
+                                                        okWrite = false;
+                                                        qDebug()<<"90";
+                                                    }
+                                                }
+                                                ba++;
+                                            }
+                                            if(okWrite){
+                                                int ba=0,da=0;
+                                                qDebug()<<"10_Ok";
+                                                for (int ind = indexX - ia;ind<indexX+(strList[a].length()-ia);ind++) {
+                                                    qDebug()<<da++;
+                                                    qDebug()<<ind<<indexY<<indexX+(strList[a].length()-ia);
+                                                    qDebug()<<strList[a].at(ba);
+                                                    startArray[ind][indexY] = strList[a].at(ba++);
+                                                    qDebug()<<startArray[ind][indexY];
+                                                }
+                                                qDebug()<<"1001000000";
+                                                startArray[indexX - ia - 1][indexY] =QString::number(h++) + ")";
+                                                writeIndex[0].append(QString::number(indexX-ia));
+                                                writeIndex[1].append(QString::number(indexY));
+                                                writeStr.append(strList[a]);
+                                                questionList.append(writeStrText[a]);
+                                                writeStrText.removeAt(a);
+                                                writePos.append("v");
+                                                strList.removeAt(a);
+                                                k--;
+                                                qDebug()<<"100100";
+                                                write = true;
+
+                                            }
+                                            else{
+                                                qDebug()<<"121000000";
+                                                if(i+1<writeStr.length()){
+                                                    qDebug()<<"322222";
+                                                    i++;
+                                                }
+                                                else {
+                                                    qDebug()<<"322223";
+                                                    if(writeStr.length()!=0){i=0;}
+                                                }
+                                                l++;
+                                                ja=0;
+                                                ia=0;
+                                                if(l==writeStr.length()){
+                                                    qDebug()<<"3222224";
+                                                    notWrite.append(strList[a]);
+                                                    notWriteText.append(writeStrText[a]);
+                                                    strList.removeAt(a);
+                                                    writeStrText.removeAt(a);
+                                                    k--;
+                                                    write = true;
+                                                    l=0;
+                                                }
+                                            }
+                                            qDebug()<<"100000000";
+                                        }
+                                            qDebug()<<"100";
+                                    }
+                                    else if(writePos[i] == "v" && strList[a].length()<300 && ia<writeIndex[1][i].toInt() && indtY<=rowY){
+                                        int indexY = writeIndex[1][i].toInt();
+                                        int indexX = writeIndex[0][i].toInt() + ja;
+                                        if(indexY>=ia){
+                                            bool okWrite = true;
+                                            int ba=0;
+                                            for (int ind = indexY - ia;ind<indexY+(strList[a].length()-ia);ind++) {
+                                                qDebug()<<"70v";
+                                                if(ind!=indexY){
+                                                    if(ind == indexY - ia){
+                                                        if(!startArray[indexX][ind-1].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                        if(!startArray[indexX-1][ind].isEmpty() || !startArray[indexX+1][ind].isEmpty()){
+                                                            if(startArray[indexX][ind] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                   }
+                                                    else if (ind == indexY+(strList[a].length()-ia)-1) {
+                                                        if(!startArray[indexX][ind+1].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                        if(!startArray[indexX-1][ind].isEmpty() || !startArray[indexX+1][ind].isEmpty()){
+                                                            if(startArray[indexX][ind] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                    }
+                                                    else {
+                                                        if(!startArray[indexX-1][ind].isEmpty() || !startArray[indexX+1][ind].isEmpty()){
+                                                            if(startArray[indexX][ind] != strList[a].at(ba)){
+                                                                okWrite = false;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                else{
+                                                    if(ind == indexY - ia && ia==0){
+                                                        if(!startArray[indexX][ind-1].isEmpty()){
+                                                            okWrite = false;
+                                                        }
+                                                   }
+                                                }
+                                                if(ia == 0 && ja == 0){
+                                                    if(!startArray[indexX][indexY-1].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == strList[a].length()-1 && ja == 0){
+                                                    if(!startArray[indexX][indexY+1].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == 0 && ja == writeStr[i].length()-1){
+                                                    if(!startArray[indexX][indexY-1].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                if(ia == strList[a].length()-1 && ja == writeStr[i].length()-1){
+                                                    if(!startArray[indexX][indexY+1].isEmpty())
+                                                        okWrite = false;
+                                                }
+                                                qDebug()<<ind<<indexY<<indexY+(strList[a].length()-ia)<<indexX;
+                                                if(!startArray[indexX][ind].isEmpty()){
+                                                    qDebug()<<ba;
+                                                    qDebug()<<"80v";
+                                                    if( startArray[indexX][ind] != strList[a].at(ba)){
+                                                        okWrite = false;
+                                                        qDebug()<<"90v";
+                                                    }
+                                                }
+                                                ba++;
+                                            }
+                                            if(okWrite){
+                                                int ba=0,da=0;
+                                                qDebug()<<"100v";
+                                                for (int ind = indexY - ia;ind<indexY+(strList[a].length()-ia);ind++) {
+                                                    qDebug()<<da++;
+                                                    qDebug()<<ind<<indexX<<indexX+(strList[a].length()-ia);
+                                                    qDebug()<<strList[a].at(ba);
+                                                    startArray[indexX][ind] = strList[a].at(ba++);
+                                                    qDebug()<<startArray[indexX][ind];
+                                                }
+                                                qDebug()<<"10010v";
+                                                startArray[indexX][indexY - ia - 1] = QString::number(h++) + ")";
+                                                writeIndex[0].append(QString::number(indexX));
+                                                writeIndex[1].append(QString::number(indexY-ia));
+                                                writeStr.append(strList[a]);
+                                                questionList.append(writeStrText[a]);
+                                                writeStrText.removeAt(a);
+                                                writePos.append("h");
+                                                strList.removeAt(a);
+                                                k--;
+                                                qDebug()<<"10010";
+                                                write = true;
+
+                                            }
+                                            else{
+                                                qDebug()<<"32222";
+                                                if(i+1<writeStr.length()){
+                                                    i++;
+                                                    qDebug()<<"32223";
+                                                }
+                                                else {
+                                                    qDebug()<<"322224";
+                                                    if(writeStr.length()!=0){i=0;}
+                                                }
+                                                l++;
+                                                ja=0;
+                                                ia=0;
+                                                if(l==writeStr.length()){
+                                                    qDebug()<<"32225";
+                                                    QMessageBox::information(this,"",strList[a]);
+                                                    notWriteText.append(writeStrText[a]);
+                                                    notWrite.append(strList[a]);
+                                                    strList.removeAt(a);
+                                                    writeStrText.removeAt(a);
+                                                    k--;
+                                                    write = true;
+                                                    l=0;
+                                                }
+                                               }
+                                            }
+                                        }
+                                    }
+
+                                    qDebug()<<"10020v";
+                                    if(write){
+                                        break;
+                                    }
+                                }
+                                qDebug()<<"10030v";
+                                if(write){
+                                    break;
+                                }
+                            }
+                            qDebug()<<"10040v";
+                            if(write){
+                                write = false;
+                                break;
+                            }
+                        }
+                    if(k>2){
+                        if(i == writeStr.length() && strList.length() == countList){
+                            notWrite.append(strList[a]);
+                            strList.removeAt(a);
+                            notWriteText.append(writeStrText[a]);
+                            writeStrText.removeAt(a);
+                            qDebug()<<"1004000av";
+                            k--;
+                        }
+                    }
+                    else if(k==2){
+                        QMessageBox::information(this,QString::number(i),QString::number(writeStr.length()));
+                        if(i==writeStr.length() && !strList[1].isNull()){
+                            notWrite.append(strList[a]);
+                            strList.removeAt(a);
+                            notWriteText.append(writeStrText[a]);
+                            writeStrText.removeAt(a);
+                            qDebug()<<"1004000v";
+                            k--;
+                        }
+                    }
+                    else if(k==1){
+                        QMessageBox::information(this,QString::number(i),QString::number(writeStr.length()));
+                        if(i==writeStr.length() && !strList.isEmpty()){
+                            notWrite.append(strList[0]);
+                            strList.removeAt(0);
+                            notWriteText.append(writeStrText[0]);
+                            writeStrText.removeAt(0);
+                            qDebug()<<"10050000v";
+                            k=0;
+                        }
+                    }
+                    qDebug()<<"10050v";
+
+                }
+                qDebug()<<"10060v";
+                if(k==0 && !checkAmount){
+                    k=notWrite.length();
+                    strList = notWrite;
+                    writeStrText = notWriteText;
+                    notWriteText.clear();
+                    notWrite.clear();
+                    checkAmount = true;
+                }
+
+        }
+            if(writeStr.length()>1){
+                int minY = 302,maxY = -1,minX = 302,maxX = -1;
+                for(int q = 0;q<300;q++){
+                    for(int q1 = 0;q1<300;q1++){
+                        if(startArray[q][q1] != "" && q<minY){
+                            minY = q;
+                        }
+                        if(startArray[q][q1] != "" && q1<minX){
+                            minX = q1;
+                        }
+                        if(startArray[q][q1] != "" && q>maxY){
+                            maxY = q;
+                        }
+                        if(startArray[q][q1] != "" && q1>maxX){
+                            maxX = q1;
+                        }
+                    }
+                }
+                ui->tableWidget->setRowCount(maxY - minY + 1);
+                ui->tableWidget->setColumnCount(maxX - minX + 1);
+                QDesktopWidget *desktop = QApplication::desktop();
+                int pix_x = desktop->width();
+                int pix_y = desktop->height();
+                if((ui->tableWidget->columnCount()*30+150)>pix_x ||  (ui->tableWidget->rowCount()*30 + 180) > pix_y || this->isMaximized()){
+                    this->showMaximized();
+                }
+                else{
+                    this->setGeometry(x(),y(),ui->tableWidget->columnCount()*30+350,ui->tableWidget->rowCount()*30 + 180);
+                }
+                for(int t = 0 ; t<writeStr.length();t++){
+                    int indx = writeIndex[0][t].toInt(),indy = writeIndex[1][t].toInt();
+                    for(int y = -1; y<writeStr[t].length();y++){
+                        QTableWidgetItem *item = new QTableWidgetItem;
+                        item->setTextAlignment(Qt::AlignCenter);
+                        if(writePos[t] == "h"){
+                            item->setText(startArray[indx][indy + y]);
+                            ui->tableWidget->setItem(indx - minY,indy - minX + y,item);
+                        }
+                        else{
+                            item->setText(startArray[indx + y][indy]);
+                            ui->tableWidget->setItem(indx - minY + y,indy - minX,item);
+                        }
+                    }
+                    ui->tableWidget->setItemDelegate(new MyDelegate(this));
+                    if(pokr && t!=writeStr.length()-1){
+                        QMessageBox::information(this,"Пауза","Натисніть щоб продовжити");
+                    }
+                }
+                if(!notWrite.isEmpty()){
+                    QString str;
+                    for(int r = 0;r<notWrite.length();r++) {
+                        ui->textEdit_2->append(notWrite[r] + "\n");
+                    }
+                }
+            }
+            else {
+                ui->tableWidget->clear();
+                ui->tableWidget->setRowCount(0);
+                ui->tableWidget->setColumnCount(0);
+                QMessageBox::information(this,"Error","Побудувати кросворд не вдалося!!!");
+            }
+    }
+}
+
+
+void Krossword::on_pushButton_4_clicked()
+{
+    QString text("<html><head></head><body><table style='border-collapse: collapse;font-size:20px;'><tbody>");
+    for (int i = 0; i <  ui->tableWidget->rowCount(); i++) {
+        text.append("<tr>");
+        for (int j = 0; j <  ui->tableWidget->columnCount(); j++) {
+ //           QMessageBox::information(this,"Error","1234");
+            if(ui->tableWidget->item(i,j)){
+                QString str;
+                str = ui->tableWidget->item(i,j)->text();
+                if(str.length() == 1){
+                    text.append("<td style='border-width:1px; border-color: black; border-style: solid; width:30px; height :30px'>").append("   ").append("</td>");
+                }
+                else{
+                    text.append("<td style='width:30px; height :30px'>").append(str).append("</td>");
+                }
+            }
+            else{
+                text.append("<td style='width:30px; height :30px'>").append("</td>");
+            }
+  //          QMessageBox::information(this,"Error","4321");
+        }
+        text.append("</tr>");
+    }
+    text.append("</tbody></table></body></html>");
+    text.append("<p>Запитання:</p><p>");
+    for(int i = 0;i<questionList.length();i++){
+        text.append(QString::number(i+1) + ") " + questionList[i] + "; ");
+    }
+    text.append("</p>");
+    text.append("<p style=\"transform: rotate(180deg);\">Відповіді: ");
+    for(int i = 0;i<writeStr.length();i++){
+        text.append(QString::number(i+1) + ") " + writeStr[i] + "; ");
+    }
+    text.append("</p>");
+    QFile *file = new QFile;
+    file->setFileName(QApplication::applicationDirPath() + "/webPage.html");
+    if(!file->open(QIODevice::WriteOnly|QIODevice::Text|QIODevice::Truncate))
+    {
+        qCritical("Error %d: %s",file->error(),qPrintable(file->errorString()));
+    }
+    else{
+        file->write(qPrintable(text));
+        file->close();
+        page = new QWebEnginePage(this);
+        connect(page,SIGNAL(loadFinished(bool)),this,SLOT(fromPdf(bool)));
+        page->load(QUrl::fromLocalFile(file->fileName()));
+    }
+}
+
+
+void MyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    QItemDelegate::paint( painter, option, index);
+    QString value = index.model()->data(index).toString();
+    if(value.length() == 1){
+       painter->setPen( Qt::black);
+       painter->drawRect( option.rect );
+    }
+}
+
+void Krossword::on_pushButton_6_clicked()
+{
+    Dictionary *dict = new Dictionary;
+    dict->show();
+    connect(dict,SIGNAL(wordCount(int)),this,SLOT(setWordCount(int)));
+}
+
+void Krossword::setWordCount(int count)
+{
+    k=0;
+    m=0;
+    strList.clear();
+    strList2.clear();
+    ui->textEdit->clear();
+    ui->textEdit_2->clear();
+    writeStrText.clear();
+    questionList.clear();
+    writeStrText2.clear();
+    ui->tableWidget->clear();
+    ui->tableWidget->setRowCount(0);
+    ui->tableWidget->setColumnCount(0);
+    QFile *file = new QFile;
+    file->setFileName(QApplication::applicationDirPath() + "/list.txt");
+    if(!file->open(QIODevice::ReadOnly|QIODevice::Text))
+    {
+        qCritical("Error %d: %s",file->error(),qPrintable(file->errorString()));
+    }
+    else {
+        int count1=0;
+        QString str,strwrite;
+        QStringList countList;
+        do{
+            str=file->readLine();
+            if(!str.isNull()){
+                count1++;
+            }
+        }while(!str.isNull());
+        file->close();
+        for (int i = 0;i<count;i++) {
+            int random = 0;
+            while(random==0){
+                random = rand()%count1;
+            }
+            bool ok = true;
+            for (int k = 0;k<countList.length();k++) {
+                if(random == countList[k].toInt()){
+                    ok = false;
+                    i-=1;
+                }
+            }
+            if(ok){
+                countList.append(QString::number(random));
+                file->open(QIODevice::ReadOnly|QIODevice::Text);
+                while(random!=0){
+                    str = file->readLine();
+                    random--;
+                }
+                for(int j = 0;j<str.length();j++){
+                    if(str.at(j)!="-"){
+                        strwrite+=str.at(j).toLower();
+
+                    }
+                    else{
+                        str.remove(0,j+1);
+                        break;
+                    }
+                }
+                file->close();
+                writeStrText.append(str);
+                writeStrText2.append(str);
+//                QMessageBox::information(this,"k",QString::number(k));
+                k++;
+                m++;
+                strList.append(strwrite);
+                strList2.append(strwrite);
+                strwrite = "";
+            }
+        }
+        file->close();
+    }
+}
+
+void Krossword::fromPdf(bool a)
+{
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setPaperSize(QPrinter::A4);
+    printer.setOrientation(QPrinter::Landscape);
+    printer.setOutputFileName(QApplication::applicationDirPath() + "/NewCrosword.pdf");
+    page->printToPdf(printer.outputFileName(),printer.pageLayout());
+}
+
+void Krossword::cellDelegat(QTableWidgetItem item)
+{
+    ui->tableWidget->setItemDelegate(new MyDelegate(this));
+}
